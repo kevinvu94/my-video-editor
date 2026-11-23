@@ -536,7 +536,7 @@ jobs:
           app=Concat.app
           rm -rf "$app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
-          cp "src/target/${{ matrix.target }}/app/concat" "$app/Contents/MacOS/concat"
+          cp "src/target/${{ matrix.target }}/app/asep-autovid" "$app/Contents/MacOS/concat"
 
           # The icon set Apple wants: each size and its @2x twin.
           iconset=Concat.iconset
@@ -701,7 +701,7 @@ jobs:
           set -euo pipefail
           name="Concat-${VERSION}-linux-${{ matrix.arch }}"
           mkdir -p "stage/$name/lib"
-          cp "src/target/${{ matrix.target }}/app/concat" "stage/$name/concat"
+          cp "src/target/${{ matrix.target }}/app/asep-autovid" "stage/$name/concat"
           cp -a ffmpeg-dev/lib/*.so* "stage/$name/lib/"
           cp -a "$ORT_DIR"/lib/libonnxruntime.so* "stage/$name/lib/"
           # whisper's shared libraries and its CPU modules, one per x86_64
@@ -944,7 +944,7 @@ jobs:
           $name = "Concat-$env:VERSION-windows-${{ matrix.arch }}"
           $dir = "stage\$name"
           New-Item -ItemType Directory -Force $dir | Out-Null
-          Copy-Item "src\target\${{ matrix.target }}\app\concat.exe" $dir
+          Copy-Item "src\target\${{ matrix.target }}\app\asep-autovid.exe" $dir
           Copy-Item "$env:FFMPEG_DIR\bin\*.dll" $dir
           Copy-Item "$env:ORT_DIR\lib\*.dll" $dir
           # whisper's DLLs and its CPU modules, one per x86_64 generation

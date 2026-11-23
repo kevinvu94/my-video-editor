@@ -32,23 +32,24 @@
 [Setup]
 ; One id for the life of the product, so an install over an older one is
 ; an upgrade and not a second copy.
-AppId={{7B1E5C3A-3B9E-4F0B-9C6D-2F1D0C0A0C47}
-AppName=Concat
+; An id of its own, so this is never taken for an upgrade of the upstream Concat.
+AppId={{1AFB1271-E2AB-4F29-970F-E4EDBB647A79}
+AppName=ASEP AutoVid
 AppVersion={#Version}
-AppVerName=Concat {#Version}
-AppPublisher=Concat contributors
-AppPublisherURL=https://github.com/jub0t/Concat
-AppSupportURL=https://github.com/jub0t/Concat/issues
-AppUpdatesURL=https://github.com/jub0t/Concat/releases
-DefaultDirName={autopf}\Concat
-DefaultGroupName=Concat
+AppVerName=ASEP AutoVid {#Version}
+AppPublisher=ASEP AutoVid
+AppPublisherURL=https://github.com/kevinvu94/my-video-editor
+AppSupportURL=https://github.com/kevinvu94/my-video-editor/issues
+AppUpdatesURL=https://github.com/kevinvu94/my-video-editor/releases
+DefaultDirName={autopf}\ASEP AutoVid
+DefaultGroupName=ASEP AutoVid
 DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir={#Out}
-OutputBaseFilename=Concat-{#Version}-windows-{#Suffix}-setup
-SetupIconFile=..\icons\concat.ico
-UninstallDisplayIcon={app}\concat.ico
-UninstallDisplayName=Concat
+OutputBaseFilename=ASEP-AutoVid-{#Version}-windows-{#Suffix}-setup
+SetupIconFile=..\icons\asep-autovid.ico
+UninstallDisplayIcon={app}\asep-autovid.ico
+UninstallDisplayName=ASEP AutoVid
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -106,14 +107,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\icons\concat.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\icons\asep-autovid.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Concat"; Filename: "{app}\concat.exe"; IconFilename: "{app}\concat.ico"
+Name: "{autoprograms}\ASEP AutoVid"; Filename: "{app}\asep-autovid.exe"; IconFilename: "{app}\asep-autovid.ico"
 ; The way in when a graphics driver draws the window as coloured squares:
 ; it turns off Settings > General > Draw on the GPU, which that window hides.
-Name: "{autoprograms}\Concat (safe graphics)"; Filename: "{app}\concat.exe"; Parameters: "--software"; IconFilename: "{app}\concat.ico"
-Name: "{autodesktop}\Concat"; Filename: "{app}\concat.exe"; IconFilename: "{app}\concat.ico"; Tasks: desktopicon
+Name: "{autoprograms}\ASEP AutoVid (safe graphics)"; Filename: "{app}\asep-autovid.exe"; Parameters: "--software"; IconFilename: "{app}\asep-autovid.ico"
+Name: "{autodesktop}\ASEP AutoVid"; Filename: "{app}\asep-autovid.exe"; IconFilename: "{app}\asep-autovid.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\concat.exe"; Description: "{cm:LaunchProgram,Concat}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\asep-autovid.exe"; Description: "{cm:LaunchProgram,ASEP AutoVid}"; Flags: nowait postinstall skipifsilent
