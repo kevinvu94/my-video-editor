@@ -109,6 +109,7 @@ mod wayland_drop {
 use dock::{Dock, SEAT_MIN_GRAB, SEAT_MIN_H, SEAT_MIN_W};
 use host::{Host, Shell};
 use panes::Msg;
+use panes::asep::AsepMsg;
 use panes::captions::CaptionsMsg;
 use panes::export::ExportMsg;
 use panes::media_bin::MediaMsg;
@@ -314,6 +315,10 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
                         studio.handle(Msg::Start(StartMsg::Dropped(paths)));
                     } else if to_library {
                         studio.handle(Msg::Sounds(SoundsMsg::Import(paths)));
+                    } else if studio.asep.shown && !paths.is_empty() {
+                        // The ASEP page is up: what is dropped goes into
+                        // the user's asset folder, by its kind.
+                        studio.handle(Msg::Asep(AsepMsg::Import(paths)));
                     } else {
                         studio.handle(Msg::Media(MediaMsg::Import(paths)));
                     }
@@ -622,6 +627,8 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
         app.set_speech_samples(ModelRc::from(models.speech_samples.clone()));
         app.set_speech_sample_waves(ModelRc::from(models.speech_sample_waves.clone()));
         app.set_speech_sample_details(ModelRc::from(models.speech_sample_details.clone()));
+        app.global::<Asep>()
+            .set_cards(ModelRc::from(models.asep_cards.clone()));
         app.global::<Sounds>()
             .set_mine(ModelRc::from(models.sounds_mine.clone()));
         app.global::<Sounds>()
@@ -1700,6 +1707,52 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
     app.global::<SourcePreview>().on_closed(on_window!(|state| {
         state.close_source();
     }));
+
+    // ── the library's ASEP page ──
+    {
+        let asep = app.global::<Asep>();
+        // What the picker offers is the category's own: its extensions, or a
+        // folder for a category made of them. It answers on a turn of its
+        // own, as the Audio page's does.
+        asep.on_import(|| {
+            Shell::with(|shell, _| {
+                let studio = shell.studio.borrow();
+                let title = i18n::t("asepLibrary.import");
+                match studio.asep.picker() {
+                    Some(extensions) => {
+                        let family = i18n::t("asepLibrary.title");
+                        drop(studio);
+                        host::pick_files_then(
+                            title,
+                            Some((family, extensions)),
+                            |studio, _, _, paths| studio.handle(Msg::Asep(AsepMsg::Import(paths))),
+                        );
+                    }
+                    None => {
+                        drop(studio);
+                        host::after_dialog(
+                            move || platform::pick_folder(&title, ""),
+                            |studio, _, _, folder| {
+                                studio.handle(Msg::Asep(AsepMsg::Import(vec![folder])))
+                            },
+                        );
+                    }
+                }
+            });
+        });
+        asep.on_select(on_window!(|state, index: i32| {
+            state.handle(Msg::Asep(AsepMsg::Category(index)));
+        }));
+        asep.on_open_folder(on_window!(|state| {
+            state.handle(Msg::Asep(AsepMsg::OpenFolder));
+        }));
+        asep.on_refresh(on_window!(|state| {
+            state.handle(Msg::Asep(AsepMsg::Refresh));
+        }));
+        asep.on_shown(on_window!(|state, on: bool| {
+            state.handle(Msg::Asep(AsepMsg::Shown(on)));
+        }));
+    }
 
     // ── the library's Audio page ──
     {

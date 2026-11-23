@@ -824,6 +824,8 @@ pub struct Models {
     pub speech_sample_details: Rc<VecModel<SharedString>>,
     /// The Audio page's shelves.
     pub sounds_mine: Rc<VecModel<crate::ui::SoundCardData>>,
+    /// The ASEP page's rows.
+    pub asep_cards: Rc<VecModel<crate::ui::AssetCardData>>,
     pub voices_saved: Rc<VecModel<crate::ui::VoiceCardData>>,
     pub sounds_concat: Rc<VecModel<crate::ui::SoundCardData>>,
     pub voices_builtin: Rc<VecModel<crate::ui::VoiceCardData>>,
@@ -909,6 +911,7 @@ impl Models {
             speech_sample_waves: Rc::new(VecModel::default()),
             speech_sample_details: Rc::new(VecModel::default()),
             sounds_mine: Rc::new(VecModel::default()),
+            asep_cards: Rc::new(VecModel::default()),
             voices_saved: Rc::new(VecModel::default()),
             sounds_concat: Rc::new(VecModel::default()),
             voices_builtin: Rc::new(VecModel::default()),
@@ -1256,6 +1259,8 @@ pub struct Studio {
     pub speech: crate::panes::speech::SpeechPane,
     /// The library's Audio page: the user's own sounds.
     pub sounds: crate::panes::sounds::SoundsPane,
+    /// The library's ASEP page: the user's own asset folder.
+    pub asep: crate::panes::asep::AsepPane,
     /// A file from the library lent the monitor and the speakers; see
     /// `crate::source`.
     pub source: Option<crate::source::Source>,
@@ -3185,6 +3190,7 @@ impl Studio {
             captions: crate::panes::captions::CaptionsPane::default(),
             speech: crate::panes::speech::SpeechPane::with_saved(&host.dirs),
             sounds: crate::panes::sounds::SoundsPane::open(&host.dirs),
+            asep: crate::panes::asep::AsepPane::default(),
             source: None,
             meters: crate::meters::MeterFeed::default(),
             voiceover: crate::panes::voiceover::VoiceoverPane::default(),

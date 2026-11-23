@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 ASEP AutoVid contributors
+
+import { Theme, Glyph, Icon } from "../primitives/primitives.slint";
+
+// The library's ASEP page: the user's own asset folder, one category at a
+// time. What is in the folder is on disk, in `Documents\ASEP-AutoVid-Assets`;
+// the page lists it and takes files in, and Rust copies each one to the
+// folder of its kind and hands it on to what reads it (a LUT becomes a look,
+// a font a face, a sound joins the sound library).
+//
+// One global for the page's data and verbs, as the Audio page has, so the
+// desk's library pane reads it without a seat threading it through.
+
+/// One asset, as a row shows it.
+export struct AssetCardData {
+    /// The file or folder on disk. What a click or a drag names.
+    id: string,
+    /// The file's name without its extension, or the folder's name.
+    name: string,
+    /// A second line: the file's type, or empty for a folder.
+    detail: string,
+}
+
+export global Asep {
+    /// The category's assets, by name.
+    in property <[AssetCardData]> cards;
+    /// The category shown: its place among `AssetKind::ALL` - luts,
+    /// stickers, overlays, fonts, sfx, music, text presets, effect
+    /// packages, templates.
+    in property <int> category;
+    /// Files are being copied in.
+    in property <bool> importing;
+    /// The library's folder, so a person knows where to put files by hand.
+    in property <string> folder;
+
+    /// The Import button: the system's picker, for what the category takes.
+    callback import();
+    /// A category picked in the sidebar.
+    callback select(index: int);
+    /// "Open folder": the category's folder in the system's file manager.
+    callback open-folder();
+    /// Look at the folder again, for files put there by hand.
+    callback refresh();
+    /// A library pane turned to the page or away from it: files dropped on
+    /// the window go into the library while it is up.
+    callback shown(on: bool);
+}
+
+// One asset: a mark on a square, its name, and what kind of file it is.
+export component AssetRow inherits Rectangle {
+    in property <AssetCardData> item;
+    in property <int> category;
+
+    /// The mark a category wears, by its place among the kinds.
+    pure function glyph-of(category: int) -> Glyph {
+        if category == 0 { return Glyph.filter; }
+        if category == 1 { return Glyph.sticker; }
+        if category == 2 { return Glyph.film; }
+        if category == 3 || category == 6 { return Glyph.text-mark; }
+        if category == 4 || category == 5 { return Glyph.music; }
+        if category == 7 { return Glyph.sparkle; }
+        return Glyph.slot;
+    }
+
+    height: 44px;
+    border-radius: Theme.r;
+    background: touch.has-hover ? Theme.field : Colors.transparent;
+
+    animate background { duration: 100ms; easing: cubic-bezier(0.4, 0, 0.2, 1); }
+
+    touch := TouchArea {
+        HorizontalLayout {
+            padding-left: 6px;
+            padding-right: 6px;
+            spacing: 8px;
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: Theme.r-sm;
+                    background: Theme.field;
+
+                    Icon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        glyph: glyph-of(root.category);
+                        size: parent.width * 0.5;
+                        tint: Theme.fg-muted;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: root.item.name;
+                    color: Theme.fg;
+                    font-size: Theme.fs-sm;
+                    overflow: elide;
+                }
+                if root.item.detail != "": Text {
+                    text: root.item.detail;
+                    color: Theme.fg-dim;
+                    font-family: Theme.font-technical;
+                    font-size: Theme.fs-xs;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
+
+export component AssetList inherits VerticalLayout {
+    in property <[AssetCardData]> items;
+    in property <int> category;
+
+    spacing: 2px;
+
+    for entry in root.items: AssetRow {
+        item: entry;
+        category: root.category;
+    }
+}

@@ -14,6 +14,7 @@
 //! The panes move here one at a time from the window's controller; the
 //! export sheet is the first, and the shape the rest follow.
 
+pub mod asep;
 pub mod captions;
 pub mod export;
 pub mod glide;
@@ -56,6 +57,8 @@ pub enum Msg {
     Voiceover(voiceover::VoiceoverMsg),
     /// To the library's Audio page.
     Sounds(sounds::SoundsMsg),
+    /// To the library's ASEP page.
+    Asep(asep::AsepMsg),
 }
 
 /// What a message says in the log: the activity trail of what the person

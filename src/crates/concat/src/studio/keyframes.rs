@@ -2126,6 +2126,19 @@ impl Studio {
         );
         app.set_speech(self.speech.data(self));
         app.set_new_voice(self.speech.new_voice_data());
+        // The ASEP page.
+        sync(&models.asep_cards, self.asep.cards());
+        {
+            let page = app.global::<crate::ui::Asep>();
+            page.set_category(self.asep.category as i32);
+            page.set_importing(self.asep.importing);
+            page.set_folder(
+                crate::panes::asep::AsepPane::root(self)
+                    .to_string_lossy()
+                    .as_ref()
+                    .into(),
+            );
+        }
         // The Audio page.
         sync(&models.sounds_mine, self.sounds.mine());
         sync(&models.sounds_concat, self.sounds.concat_rows());

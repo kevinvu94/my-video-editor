@@ -243,12 +243,24 @@ pub fn import(root: &Path, kind: AssetKind, source: &Path) -> Result<PathBuf, St
     if source.parent() == Some(dir.as_path()) {
         return Ok(source.to_path_buf());
     }
+    copy_into(&dir, source)
+}
+
+/// Copies a file, or a folder and what is in it, into `dir`, and returns
+/// where the copy is. A name `dir` already has is numbered, never
+/// overwritten. This is how a library asset is handed on to one of the app's
+/// own folders - a look's, the text presets', the templates' - which read
+/// from there and not from the library.
+pub fn copy_into(dir: &Path, source: &Path) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
     let name = source
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let target = dir.join(free_name(&dir, &name, kind.is_bundle()));
-    if kind.is_bundle() {
+    let folder = source.is_dir();
+    let target = dir.join(free_name(dir, &name, folder));
+    if folder {
         copy_folder(source, &target, 0)?;
     } else {
         std::fs::copy(source, &target)
@@ -479,6 +491,26 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(first.join("sub").join("effect.wgsl")).unwrap(),
             "wgsl"
+        );
+    }
+
+    #[test]
+    fn copy_into_hands_a_file_or_a_folder_to_another_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("look.toml");
+        write(&file, "one");
+        let folder = dir.path().join("pack");
+        write(&folder.join("a.txt"), "two");
+        let target = dir.path().join("app").join("effects");
+        assert_eq!(copy_into(&target, &file).unwrap(), target.join("look.toml"));
+        assert_eq!(
+            copy_into(&target, &file).unwrap(),
+            target.join("look 2.toml")
+        );
+        assert_eq!(copy_into(&target, &folder).unwrap(), target.join("pack"));
+        assert_eq!(
+            std::fs::read_to_string(target.join("pack").join("a.txt")).unwrap(),
+            "two"
         );
     }
 

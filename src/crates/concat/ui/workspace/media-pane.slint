@@ -16,6 +16,8 @@ import { Wave } from "../primitives/wave.slint";
 import { ContextMenu, MenuItemData } from "../primitives/context-menu.slint";
 import { SourcePreview } from "source-preview.slint";
 import { Sounds, SoundList, VoiceList } from "audio-page.slint";
+import { Asep, AssetList } from "asep-page.slint";
+import { Button } from "../primitives/modal.slint";
 import { CaptionsForm, CaptionsSheetData } from "../dialogs/captions.slint";
 
 export { SourcePreview }
@@ -1854,11 +1856,16 @@ export component MediaPane inherits Rectangle {
     property <int> tab;
     /// The Audio page is up, or not: a drop of sound files on the window
     /// goes into the library while it is.
-    changed tab => { Sounds.shown(root.tab == 8); }
+    changed tab => {
+        Sounds.shown(root.tab == 8);
+        Asep.shown(root.tab == 9);
+    }
     /// The Audio page's shelf: 0 = Mine, 10 = Voices, 11 = Styles. 1 was
     /// Concat's own sounds, off the page until their list is published (#60).
     property <int> audio-category;
     property <bool> sounds-open: true;
+    /// The ASEP page's group of categories is open in the sidebar.
+    property <bool> asep-open: true;
     property <bool> voices-open: true;
     /// How far left the page strip can be pushed: nothing, while its chips
     /// fit. See `strip`.
@@ -2036,6 +2043,14 @@ export component MediaPane inherits Rectangle {
                             label: I18n.t("mediaPane.templates");
                             current: root.tab == 6;
                             clicked => { root.tab = 6; }
+                        }
+                        // The user's own asset folder; 9 is the next number
+                        // after the last one handed out.
+                        LibraryTab {
+                            glyph: Glyph.folder;
+                            label: I18n.t("asepLibrary.title");
+                            current: root.tab == 9;
+                            clicked => { root.tab = 9; }
                         }
                         }
                     }
@@ -2236,6 +2251,71 @@ export component MediaPane inherits Rectangle {
                             label: I18n.t("voices.styles");
                             current: root.audio-category == 11;
                             clicked => { root.audio-category = 11; }
+                        }
+                    }
+
+                    // ASEP: one row per folder of the user's asset library.
+                    if root.tab == 9: VerticalLayout {
+                        spacing: 1px;
+                        CategoryHeading {
+                            height: 26px;
+                            title: I18n.t("asepLibrary.title");
+                            open: root.asep-open;
+                            toggled => { root.asep-open = !root.asep-open; }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.luts");
+                            current: Asep.category == 0;
+                            clicked => { Asep.select(0); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.stickers");
+                            current: Asep.category == 1;
+                            clicked => { Asep.select(1); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.overlays");
+                            current: Asep.category == 2;
+                            clicked => { Asep.select(2); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.fonts");
+                            current: Asep.category == 3;
+                            clicked => { Asep.select(3); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.sfx");
+                            current: Asep.category == 4;
+                            clicked => { Asep.select(4); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.music");
+                            current: Asep.category == 5;
+                            clicked => { Asep.select(5); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.textPresets");
+                            current: Asep.category == 6;
+                            clicked => { Asep.select(6); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.effects");
+                            current: Asep.category == 7;
+                            clicked => { Asep.select(7); }
+                        }
+                        if root.asep-open: CategoryRow {
+                            height: 24px;
+                            label: I18n.t("asepLibrary.templates");
+                            current: Asep.category == 8;
+                            clicked => { Asep.select(8); }
                         }
                     }
 
@@ -2590,6 +2670,62 @@ export component MediaPane inherits Rectangle {
                             root.band-selected(columns, from-col, to-col,
                                 from-row, to-row, additive);
                         }
+                    }
+                }
+
+                // ASEP: the user's asset folder, a category at a time. The
+                // import is the page's head, then what the folder is for,
+                // where it is, and its files by name.
+                if root.tab == 9: VerticalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ImportButton {
+                            label: I18n.t("asepLibrary.import");
+                            busy: Asep.importing;
+                            clicked => { Asep.import(); }
+                        }
+                        Button {
+                            label: I18n.t("asepLibrary.openFolder");
+                            glyph: Glyph.folder;
+                            ghost: true;
+                            clicked => { Asep.open-folder(); }
+                        }
+                    }
+                    Text {
+                        text: [
+                        I18n.t("asepLibrary.hintLuts"),
+                        I18n.t("asepLibrary.hintStickers"),
+                        I18n.t("asepLibrary.hintOverlays"),
+                        I18n.t("asepLibrary.hintFonts"),
+                        I18n.t("asepLibrary.hintSfx"),
+                        I18n.t("asepLibrary.hintMusic"),
+                        I18n.t("asepLibrary.hintTextPresets"),
+                        I18n.t("asepLibrary.hintEffects"),
+                        I18n.t("asepLibrary.hintTemplates")
+                        ][Math.clamp(Asep.category, 0, 8)];
+                        color: Theme.fg-muted;
+                        font-size: Theme.fs-sm;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: Asep.folder;
+                        color: Theme.fg-dim;
+                        font-family: Theme.font-technical;
+                        font-size: Theme.fs-xs;
+                        overflow: elide;
+                    }
+                    if Asep.cards.length == 0: Text {
+                        text: I18n.t("asepLibrary.empty");
+                        color: Theme.fg-muted;
+                        font-size: Theme.fs-sm;
+                        wrap: word-wrap;
+                    }
+                    AssetList {
+                        items: Asep.cards;
+                        category: Asep.category;
                     }
                 }
 

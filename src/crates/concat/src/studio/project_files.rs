@@ -545,6 +545,11 @@ impl Studio {
                 pane.update(msg, self);
                 self.sounds = pane;
             }
+            crate::panes::Msg::Asep(msg) => {
+                let mut pane = std::mem::take(&mut self.asep);
+                pane.update(msg, self);
+                self.asep = pane;
+            }
             crate::panes::Msg::Relink(msg) => {
                 let mut pane = std::mem::take(&mut self.relink);
                 pane.update(msg, self);
