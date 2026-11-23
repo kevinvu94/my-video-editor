@@ -201,7 +201,7 @@ fn default_location() -> String {
     location
 }
 
-/// Where a new project goes on `os`: a Concat folder on the desktop. The
+/// Where a new project goes on `os`: an ASEP AutoVid Project folder on the desktop. The
 /// desktop the system names, not `~/Desktop`: on Windows OneDrive often
 /// moves it, and on Linux it is called what the desktop's language calls
 /// it. A phone has no desk. An Android phone's projects live at the top of
@@ -214,8 +214,13 @@ fn location_on(os: &str, desktop: Option<PathBuf>, home: impl Fn(&str) -> String
         "android" => home("Concat"),
         "ios" => home("Documents/Concat"),
         _ => desktop
-            .map(|desktop| desktop.join("Concat").to_string_lossy().into_owned())
-            .unwrap_or_else(|| home("Desktop/Concat")),
+            .map(|desktop| {
+                desktop
+                    .join("ASEP AutoVid Project")
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .unwrap_or_else(|| home("Desktop/ASEP AutoVid Project")),
     }
 }
 
@@ -634,9 +639,12 @@ mod tests {
         assert_eq!(location_on("android", None, home), "/home/Concat");
         assert_eq!(
             PathBuf::from(location_on("macos", desktop(), home)),
-            Path::new("/desk").join("Concat")
+            Path::new("/desk").join("ASEP AutoVid Project")
         );
-        assert_eq!(location_on("linux", None, home), "/home/Desktop/Concat");
+        assert_eq!(
+            location_on("linux", None, home),
+            "/home/Desktop/ASEP AutoVid Project"
+        );
     }
 
     /// The next untitled name skips every folder already there, and starts
