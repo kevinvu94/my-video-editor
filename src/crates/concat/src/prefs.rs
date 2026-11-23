@@ -86,6 +86,9 @@ pub struct Preferences {
     pub dark: Option<bool>,
     /// The parent folder of the last project created successfully.
     pub last_project_location: Option<String>,
+    /// Where the ASEP asset library is kept, when the person moved it from
+    /// the default, `Documents\ASEP-AutoVid-Assets`. `None` is the default.
+    pub assets_dir: Option<String>,
     /// The accent, by the lower-cased name the theme lists it under —
     /// "lime", "sky", ... — or as "#rrggbb" for a colour picked by hand.
     /// `None`, or a name no longer on the list, is the first one, which is
@@ -393,6 +396,18 @@ impl Preferences {
         self.last_project_location
             .as_deref()
             .filter(|location| std::path::Path::new(location).is_dir())
+    }
+
+    /// The ASEP asset library's folder: the one the person chose, or else
+    /// `Documents\ASEP-AutoVid-Assets`. `documents` is the Documents folder
+    /// the system names, which only the desktop can ask for. The folder may
+    /// not exist yet; `concat_host::assets::ensure_tree` makes it.
+    pub fn assets_root(&self, documents: Option<std::path::PathBuf>) -> std::path::PathBuf {
+        self.assets_dir
+            .as_deref()
+            .filter(|dir| !dir.trim().is_empty())
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| concat_host::assets::root_in(documents, std::env::home_dir()))
     }
 
     /// Whether the magnet shows as on. On a phone, until the person says
@@ -770,6 +785,30 @@ mod tests {
             .count();
         assert_eq!(leftovers, 0);
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn the_asset_library_is_under_documents_unless_moved() {
+        let documents = std::path::PathBuf::from("/od/Documents");
+        let default = Preferences::default().assets_root(Some(documents.clone()));
+        assert_eq!(
+            default,
+            documents.join(concat_host::assets::FOLDER),
+            "the default sits under Documents"
+        );
+        let moved = Preferences {
+            assets_dir: Some("/media/assets".into()),
+            ..Preferences::default()
+        };
+        assert_eq!(
+            moved.assets_root(Some(documents.clone())),
+            std::path::PathBuf::from("/media/assets")
+        );
+        let blank = Preferences {
+            assets_dir: Some("  ".into()),
+            ..Preferences::default()
+        };
+        assert_eq!(blank.assets_root(Some(documents.clone())), default);
     }
 
     #[test]
