@@ -67,10 +67,10 @@ pub fn manifest(id: &str, name: &str, file: &str, space: Space) -> String {
     )
 }
 
-/// Makes a package folder under `dir` from the table at `path`, and
-/// returns the package's id: `user.` and the file's name, slugged. A second
-/// import of the same name replaces the first.
-pub fn import(dir: &Path, path: &Path) -> Result<String, String> {
+/// The id [`import`] gives the look made from the table at `path`: `user.`
+/// and the file's name, slugged. Known without importing, so a caller can
+/// name a look whose table it has not read yet.
+pub fn look_id(path: &Path) -> String {
     let stem = path
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
@@ -87,7 +87,18 @@ pub fn import(dir: &Path, path: &Path) -> Result<String, String> {
     if slug.is_empty() {
         slug = "look".to_owned();
     }
-    let id = format!("user.{slug}");
+    format!("user.{slug}")
+}
+
+/// Makes a package folder under `dir` from the table at `path`, and
+/// returns the package's id: `user.` and the file's name, slugged. A second
+/// import of the same name replaces the first.
+pub fn import(dir: &Path, path: &Path) -> Result<String, String> {
+    let stem = path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let id = look_id(path);
     let text = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
     // A byte-order mark would hide a `TITLE` on the first line from `space_of`.
     let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
@@ -190,6 +201,25 @@ mod tests {
             }
         }
         text
+    }
+
+    /// The id is known from the file's name alone, and is the one the import
+    /// gives, so a caller can name a look before it has been imported.
+    #[test]
+    fn a_looks_id_is_its_files_name_slugged() {
+        assert_eq!(
+            look_id(Path::new("Teal & Orange v2.cube")),
+            "user.teal-orange-v2"
+        );
+        assert_eq!(look_id(Path::new("/x/y/WARM.CUBE")), "user.warm");
+        assert_eq!(look_id(Path::new("---.cube")), "user.look");
+        let dir = scratch("id");
+        let source = dir.join("Teal & Orange v2.cube");
+        std::fs::write(&source, table("Teal")).expect("a table");
+        assert_eq!(
+            import(&dir.join("looks"), &source).unwrap(),
+            look_id(&source)
+        );
     }
 
     /// An imported table is a format 2 look that loads, reads its table in

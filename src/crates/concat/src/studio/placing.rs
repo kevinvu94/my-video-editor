@@ -70,6 +70,30 @@ impl Studio {
                     row: 0,
                 })
             }
+            // A picture or a video from the ASEP page: its place in the
+            // page's list rides in `media` behind `asep:`, and the drop
+            // brings the file into the bin. A video's length is read when it
+            // comes in; the ghost shows a stand-in until then.
+            "asep" => {
+                let entry = self.asep.entry(id.parse().ok()?)?;
+                let video = entry
+                    .path
+                    .extension()
+                    .map(|extension| extension.to_string_lossy().to_ascii_lowercase())
+                    .is_some_and(|extension| matches!(extension.as_str(), "mp4" | "webm" | "mov"));
+                Some(DropPlan {
+                    kind: if video {
+                        ClipKind::Video
+                    } else {
+                        ClipKind::Image
+                    },
+                    label: entry.name.clone(),
+                    media: format!("asep:{id}"),
+                    start: 0.0,
+                    duration: if video { 5.0 } else { LAYER_DURATION }.max(MIN_DURATION),
+                    row: 0,
+                })
+            }
             // A look dragged from the Filters page: a layer over a span.
             // The package id rides in `media`, there being no file.
             "filter" => Some(DropPlan {
@@ -161,6 +185,10 @@ impl Studio {
             self.place_card(card, Some(track_id), f64::from(plan.start));
             return;
         }
+        if let Some(row) = plan.media.strip_prefix("asep:") {
+            self.place_asset_row(row, Some(track_id), f64::from(plan.start));
+            return;
+        }
         if let Some(transition) = plan.media.strip_prefix("transition:") {
             let created = self.place_transition(
                 transition,
@@ -235,6 +263,10 @@ impl Studio {
             self.place_card(card, None, start);
             return;
         }
+        if let Some(row) = plan.media.strip_prefix("asep:") {
+            self.place_asset_row(row, None, start);
+            return;
+        }
         if let Some(transition) = plan.media.strip_prefix("transition:") {
             let created = self.place_transition(
                 transition,
@@ -279,6 +311,81 @@ impl Studio {
         if let Some(id) = created {
             self.selection = vec![id];
         }
+    }
+
+    /// A row of the ASEP page dropped on a lane, or added at the playhead:
+    /// see [`Studio::place_asset`].
+    fn place_asset_row(&mut self, row: &str, track_id: Option<String>, start: f64) {
+        let Some((path, name)) = row
+            .parse::<usize>()
+            .ok()
+            .and_then(|index| self.asep.entry(index))
+            .map(|entry| (entry.path.clone(), entry.name.clone()))
+        else {
+            return;
+        };
+        self.place_asset(&path, &name, track_id, start);
+    }
+
+    /// Lays a picture or a video from the ASEP library on the timeline: into
+    /// the bin first - once; a second use finds it there - then cut onto
+    /// `track_id` at `start`, or at `start` on the first lane with room,
+    /// which with the footage on the bottom lane is the one above it. The
+    /// file is linked where it is, as an ordinary import is, since the
+    /// library is a folder that stays. Selects what it made.
+    pub fn place_asset(
+        &mut self,
+        path: &std::path::Path,
+        name: &str,
+        track_id: Option<String>,
+        start: f64,
+    ) {
+        let media_id = match self.adopt_asset(path) {
+            Ok(id) => id,
+            Err(error) => {
+                self.notify(&error, true);
+                return;
+            }
+        };
+        log::info!("assets: laid {name} on the timeline");
+        let created = match track_id {
+            Some(track_id) => self.apply(Command::AddClip {
+                media_id,
+                track_id,
+                start,
+                ripple: true,
+            }),
+            None => self.apply(Command::AddClipAtFirstFree { media_id, start }),
+        };
+        if let Some(id) = created {
+            self.selection = vec![id];
+        }
+    }
+
+    /// The bin's id for a library file in this project, imported when it is
+    /// not there yet.
+    fn adopt_asset(&mut self, path: &std::path::Path) -> Result<String, String> {
+        if self.session.is_none() {
+            return Err(t("sounds.openProjectFirst"));
+        }
+        let text = path.to_string_lossy().into_owned();
+        if let Some(item) = self.project().media.iter().find(|item| item.path == text) {
+            return Ok(item.id.clone());
+        }
+        let summary = concat_host::media::probe(&text)
+            .map_err(|error| tf("studio.couldNotImport", &[&path.display(), &error]))?;
+        let created = self.apply(Command::AddMedia {
+            item: summary.to_new_media(),
+        });
+        created
+            .or_else(|| {
+                self.project()
+                    .media
+                    .iter()
+                    .find(|item| item.path == text)
+                    .map(|item| item.id.clone())
+            })
+            .ok_or_else(|| tf("studio.couldNotImport", &[&path.display(), &"?"]))
     }
 
     /// Places a title in the look a preset names - "default" for the plain

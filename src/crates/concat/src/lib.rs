@@ -1743,6 +1743,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: Smoke) -> Result<(), slint:
         asep.on_select(on_window!(|state, index: i32| {
             state.handle(Msg::Asep(AsepMsg::Category(index)));
         }));
+        asep.on_add(on_window!(|state, index: i32| {
+            state.handle(Msg::Asep(AsepMsg::Add(index)));
+        }));
         asep.on_open_folder(on_window!(|state| {
             state.handle(Msg::Asep(AsepMsg::OpenFolder));
         }));

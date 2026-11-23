@@ -42,6 +42,9 @@ pub enum AsepMsg {
     Refresh,
     /// The category's folder shown in the system's file manager.
     OpenFolder,
+    /// A row used: a LUT is applied to the selected clip, and a sticker or
+    /// an overlay is laid at the playhead. The row's place in the list.
+    Add(i32),
     /// Files picked, or dropped while the page was up.
     Import(Vec<PathBuf>),
     /// The copying worker is done.
@@ -93,6 +96,11 @@ impl AsepPane {
         (!extensions.is_empty()).then_some(extensions)
     }
 
+    /// The asset in row `index` of the category shown.
+    pub fn entry(&self, index: usize) -> Option<&AssetEntry> {
+        self.entries.get(index)
+    }
+
     /// Makes the library's folders if they are not there and reads the
     /// category's one.
     fn refresh(&mut self, studio: &Studio) {
@@ -103,6 +111,29 @@ impl AsepPane {
         self.entries = assets::scan(&root, self.kind());
     }
 
+    /// [`Self::refresh`], and every LUT the folder holds that is not a look
+    /// yet made one: a table put in the folder by hand is usable the moment
+    /// the page shows it, and a drag of its row names a look that exists.
+    fn reload(&mut self, studio: &mut Studio) {
+        self.refresh(studio);
+        if self.kind() != AssetKind::Lut {
+            return;
+        }
+        let looks = Studio::looks_dir(&studio.host.dirs);
+        let missing: Vec<PathBuf> = self
+            .entries
+            .iter()
+            .filter(|entry| {
+                let id = concat_effects::looks::look_id(&entry.path);
+                !looks.join(id).join("effect.toml").is_file()
+            })
+            .map(|entry| entry.path.clone())
+            .collect();
+        if !missing.is_empty() {
+            studio.import_luts(missing);
+        }
+    }
+
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: AsepMsg, studio: &mut Studio) {
@@ -110,14 +141,32 @@ impl AsepPane {
             AsepMsg::Shown(on) => {
                 self.shown = on;
                 if on {
-                    self.refresh(studio);
+                    self.reload(studio);
                 }
             }
             AsepMsg::Category(index) => {
                 self.category = (index.max(0) as usize).min(AssetKind::ALL.len() - 1);
-                self.refresh(studio);
+                self.reload(studio);
             }
-            AsepMsg::Refresh => self.refresh(studio),
+            AsepMsg::Refresh => self.reload(studio),
+            AsepMsg::Add(index) => {
+                let Some(entry) = self.entries.get(index.max(0) as usize).cloned() else {
+                    return;
+                };
+                match entry.kind {
+                    AssetKind::Lut => {
+                        // On the selected clip, or as a layer of its own at
+                        // the playhead when nothing is selected.
+                        let id = concat_effects::looks::look_id(&entry.path);
+                        studio.apply_lut(&id, &entry.name);
+                    }
+                    AssetKind::Sticker | AssetKind::Overlay => {
+                        let start = f64::from(studio.playhead.max(0.0));
+                        studio.place_asset(&entry.path, &entry.name, None, start);
+                    }
+                    _ => {}
+                }
+            }
             AsepMsg::OpenFolder => {
                 let root = Self::root(studio);
                 if let Err(error) = assets::ensure_tree(&root) {
@@ -243,12 +292,31 @@ impl AsepPane {
     pub fn cards(&self) -> Vec<AssetCardData> {
         self.entries
             .iter()
-            .map(|entry| AssetCardData {
+            .enumerate()
+            .map(|(index, entry)| AssetCardData {
                 id: entry.path.to_string_lossy().as_ref().into(),
                 name: entry.name.as_str().into(),
                 detail: detail(entry).into(),
+                payload: payload(index, entry).into(),
             })
             .collect()
+    }
+}
+
+/// What a drag of the row carries, or nothing for a row that is not laid on
+/// the timeline. A sticker or an overlay is named by its place in the list,
+/// since a path has a colon in it on Windows and the payload is cut at
+/// colons; a LUT rides as the look it was made into, the way a look dragged
+/// from the Filters page does.
+fn payload(index: usize, entry: &AssetEntry) -> String {
+    match entry.kind {
+        AssetKind::Sticker | AssetKind::Overlay => format!("asep:{index}:{}", entry.name),
+        AssetKind::Lut => format!(
+            "filter:{}:{}",
+            concat_effects::looks::look_id(&entry.path),
+            entry.name
+        ),
+        _ => String::new(),
     }
 }
 
@@ -269,4 +337,84 @@ fn display_name(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(kind: AssetKind, name: &str, path: &str) -> AssetEntry {
+        AssetEntry {
+            kind,
+            name: name.to_owned(),
+            path: PathBuf::from(path),
+        }
+    }
+
+    /// A row drags as what it is: a sticker or an overlay by its place in
+    /// the list - never by its path, which has a colon in it on Windows and
+    /// the payload is cut at colons - a LUT as the look it was made into, and
+    /// the rest not at all.
+    #[test]
+    fn a_row_drags_as_what_it_is() {
+        assert_eq!(
+            payload(
+                2,
+                &entry(AssetKind::Sticker, "Heart", "/lib/stickers/Heart.png")
+            ),
+            "asep:2:Heart"
+        );
+        assert_eq!(
+            payload(
+                0,
+                &entry(AssetKind::Overlay, "Sparks", "/lib/overlays/Sparks.webm")
+            ),
+            "asep:0:Sparks"
+        );
+        assert_eq!(
+            payload(
+                5,
+                &entry(AssetKind::Lut, "Warm Film", "/lib/luts/Warm Film.cube")
+            ),
+            "filter:user.warm-film:Warm Film"
+        );
+        assert_eq!(
+            payload(1, &entry(AssetKind::Font, "Face", "/lib/fonts/Face.ttf")),
+            ""
+        );
+        assert_eq!(
+            payload(1, &entry(AssetKind::Sfx, "Hit", "/lib/sfx/Hit.wav")),
+            ""
+        );
+    }
+
+    /// A payload names a row and its label, so a name with a colon in it
+    /// still reads back whole: the payload is cut into three at most.
+    #[test]
+    fn a_name_with_a_colon_is_the_label_not_the_row() {
+        let text = payload(
+            4,
+            &entry(AssetKind::Sticker, "Take: 2", "/lib/stickers/Take 2.png"),
+        );
+        let mut fields = text.splitn(3, ':');
+        assert_eq!(fields.next(), Some("asep"));
+        assert_eq!(fields.next(), Some("4"));
+        assert_eq!(fields.next(), Some("Take: 2"));
+    }
+
+    #[test]
+    fn a_folder_row_has_no_type_and_a_file_row_has_its_extension() {
+        assert_eq!(
+            detail(&entry(AssetKind::Lut, "Warm", "/lib/luts/Warm.cube")),
+            "CUBE"
+        );
+        assert_eq!(
+            detail(&entry(
+                AssetKind::EffectPackage,
+                "glow",
+                "/lib/effects/glow"
+            )),
+            ""
+        );
+    }
 }
