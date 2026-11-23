@@ -127,6 +127,11 @@ pub enum SettingsMsg {
 
 /// The Version page's index in the column of pages.
 const VERSION_PAGE: i32 = 6;
+
+/// Whether the app looks for releases and installs one. Off: they are upstream
+/// Concat's, and installing one would replace ASEP AutoVid with it.
+const UPDATES_ENABLED: bool = false;
+
 /// The Shortcuts page's index, which the launch screen's Keyboard
 /// shortcuts card opens the sheet on.
 pub const SHORTCUTS_PAGE: i32 = 7;
@@ -669,7 +674,9 @@ impl SettingsPane {
     /// Asks GitHub for the releases on a worker; the answer comes back as
     /// [`SettingsMsg::UpdatesFetched`].
     fn check_updates(&mut self) {
-        if self.checking {
+        // Off in ASEP AutoVid: the releases it would look at are upstream
+        // Concat's, and the build it would offer is that one.
+        if !UPDATES_ENABLED || self.checking {
             return;
         }
         self.checking = true;
@@ -684,7 +691,7 @@ impl SettingsPane {
     /// download reports as [`SettingsMsg::InstallProgress`] and the whole
     /// ends as [`SettingsMsg::InstallFinished`].
     fn install_version(&mut self, studio: &mut Studio) {
-        if self.install.is_some() {
+        if !UPDATES_ENABLED || self.install.is_some() {
             return;
         }
         let Some(release) = self.releases.get(self.version_choice).cloned() else {

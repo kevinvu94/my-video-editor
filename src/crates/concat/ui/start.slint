@@ -1666,8 +1666,11 @@ global Links {
         name: "report", glyph: Glyph.bug, external: true,
         title: I18n.t("start.reportProblem"),
     };
-    out property <[HomeLink]> desk: [docs, keys, code, chat, report];
-    out property <[HomeLink]> phone: [docs, code, chat, report];
+    // ASEP AutoVid keeps only the shortcuts. The guides, the repository, the
+    // Discord and the issue tracker (`docs`, `code`, `chat`, `report`) all
+    // belong to upstream Concat, so they are left off the lists.
+    out property <[HomeLink]> desk: [keys];
+    out property <[HomeLink]> phone: [];
 }
 
 // A soft light of colour behind the news card: a radial fade from `tint`
@@ -1803,15 +1806,15 @@ component WideHome inherits Rectangle {
         width: root.side-w;
         height: root.panel-h;
         border-radius: 18px;
-        background: Theme.launch-panel;
+        background: Theme.launch-panel.with-alpha(0.72);
 
         property <int> verbs: root.capcut ? 3 : 2;
         property <length> verbs-h: self.verbs * 44px + (self.verbs - 1) * 8px;
         property <length> links-h: Links.desk.length * 34px;
-        property <length> news-h: 156px;
-        /// The news card is the one thing here a short window can do
+        property <length> logo-h: 190px;
+        /// The logo is the one thing here a short window can do
         /// without: the verbs and the links keep their room first.
-        property <bool> news: self.height >= self.verbs-h + self.links-h + self.news-h + 64px;
+        property <bool> logo: self.height >= self.verbs-h + self.links-h + self.logo-h + 64px;
 
         VerticalLayout {
             padding: 12px;
@@ -1841,12 +1844,12 @@ component WideHome inherits Rectangle {
 
             Rectangle { vertical-stretch: 1; }
 
-            if side.news: NewsCard {
-                height: side.news-h;
-                small: true;
-                title: I18n.t1("start.whatsNew", root.version);
-                note: I18n.t("start.newsNote");
-                clicked => { root.link("news"); }
+            if side.logo: Image {
+                height: side.logo-h;
+                source: @image-url("assets/asep-autovid-logo.png");
+                image-fit: contain;
+                accessible-role: image;
+                accessible-label: "ASEP AutoVid";
             }
 
             VerticalLayout {
@@ -1867,7 +1870,7 @@ component WideHome inherits Rectangle {
         width: root.width - self.x - root.gutter;
         height: root.panel-h;
         border-radius: 18px;
-        background: Theme.launch-panel;
+        background: Theme.launch-panel.with-alpha(0.72);
         clip: true;
 
         flick := Flickable {
@@ -2157,19 +2160,19 @@ component NarrowHome inherits Rectangle {
 
             Rectangle { height: 32px; }
 
-            NewsCard {
-                height: 150px;
-                compact: true;
-                title: I18n.t1("start.whatsNew", root.version);
-                note: I18n.t("start.newsNote");
-                clicked => { root.link("news"); }
+            Image {
+                height: 170px;
+                source: @image-url("assets/asep-autovid-logo.png");
+                image-fit: contain;
+                accessible-role: image;
+                accessible-label: "ASEP AutoVid";
             }
 
             Rectangle { height: 12px; }
 
             // The page's links, as the sidebar's foot has them on a desk:
             // one line each, on one surface.
-            Rectangle {
+            if (root.phone ? Links.phone : Links.desk).length > 0: Rectangle {
                 border-radius: Theme.r-lg;
                 background: Theme.launch-panel;
                 height: list.preferred-height;
@@ -2226,7 +2229,10 @@ export component StartScreen inherits Rectangle {
 
     property <bool> narrow: root.phone || root.width < 680px;
 
-    background: Theme.launch-page;
+    // Red at the top left to blue at the foot, the two colours of the logo,
+    // over the dark ground. The panels above it are a little see-through so
+    // that it shows.
+    background: @linear-gradient(145deg, #3a1322 0%, #1a1226 32%, #0e0e10 55%, #0c1b36 100%);
     clip: true;
 
     if !root.narrow: WideHome {
